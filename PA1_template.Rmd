@@ -1,25 +1,157 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
+author: "Jhonattan Reales"
 output: 
   html_document:
     keep_md: true
 ---
-
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+if (!require("tidyverse")) install.packages("tidyverse")
+if (!require("lubridate")) install.packages("lubridate")
+if (!require("ggplot2")) install.packages("ggplot2")
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
 
 ## Loading and preprocessing the data
 
+```{r}
+data <- read.csv("C:/Users/Uninorte/Dropbox/RESUMEN CURSOS/COURSERA/Reproducible Research/WEEK2/1st project/activity.csv")
+data$date <- as_datetime(data$date)
+glimpse(data)
+```
 
 
 ## What is mean total number of steps taken per day?
 
+I will group by the dates and sum all the steps values omitting the missing values
+
+```{r}
+total_steps <- data %>% group_by(date) %>% summarise(steps_day=sum(steps, na.rm = TRUE))
+head(arrange(total_steps, desc(steps_day)),10)
+total_steps %>% ggplot(aes(x=date,y=steps_day)) + geom_bar(color="black",
+                                            stat = "identity",fill="skyblue")+
+      ylab("Total steps")+ggtitle("Total steps per day")+theme_bw()+
+      theme(plot.title =  element_text(hjust=0.5,size=18))
+      
+```
+
+#### **Mean - omitting missing values**
+```{r}
+mean(total_steps$steps_day)
+```
+
+#### **Median - omitting missing values**
+```{r}
+median(total_steps$steps_day)
+```
 
 
 ## What is the average daily activity pattern?
+```{r}
+daily_pattern <- data %>% group_by(interval) %>% summarise(avg=mean(steps, na.rm = TRUE))
+daily_pattern %>% ggplot(aes(x=interval,y=avg))+geom_line(size=0.8, color="darkblue")+theme_bw()+
+      ylab("Average steps")+ggtitle("Average steps per interval")+
+      theme(plot.title =  element_text(hjust=0.5,size=18))
 
+```
 
+```{r}
+head(arrange(daily_pattern, desc(avg)),20)
+
+```
+
+**The interval 835 has the maximum average steps across all the days**
 
 ## Imputing missing values
+```{r}
+sum(is.na(data$steps)) #2304 missing steps values
+sum(is.na(data$date))
+sum(is.na(data$interval))
+```
+
+The dataset has 2304 missing steps values.
+
+I will impute the NA's with the average value for the specific time interval, in the specific week day. For example, a NA value for a Thursday at interval 720, will have the average value of all the  Thursday at interval 720.
+
+```{r warning=FALSE}
+data$week_day <- weekdays(data$date)
+data_for_imputing <- data %>% group_by(week_day,interval) %>% summarise(avg=round(mean(steps, na.rm = TRUE),0))
+
+missing <- data %>% filter(is.na(steps)) %>%
+      left_join(data_for_imputing, by=c("week_day","interval")) %>% 
+      mutate(steps=avg) %>% select(1:4)
+
+missing$steps <- as.integer(missing$steps)
+sum(is.na(missing$steps))
+
+```
+The new dataset wouldnt have any missing value:
+
+```{r}
+data <- data %>% filter(!is.na(steps))
+data <- rbind(data,missing)
+data <- arrange(data, date)
+data[sample(1:nrow(data))[1:10],]
+```
+And now, the total steps per day without missing values will looks like this:
+
+```{r}
+total_steps2 <- data %>% group_by(date) %>% summarise(steps_day=sum(steps, na.rm = TRUE))
+head(arrange(total_steps2, desc(steps_day)),10)
+total_steps2 %>% ggplot(aes(x=date,y=steps_day)) + geom_bar(color="black",
+                                                           stat = "identity",fill="skyblue")+
+      ylab("Total steps")+ggtitle("Total steps per day - Imputing missing data")+theme_bw()+
+      theme(plot.title =  element_text(hjust=0.5,size=18))
+```
+
+
+#### **Mean - imputing the missing values**
+```{r}
+mean(total_steps2$steps_day)
+```
+
+#### **Median - imputing the missing values**
+```{r}
+median(total_steps2$steps_day)
+```
 
 
 
 ## Are there differences in activity patterns between weekdays and weekends?
+```{r}
+set.seed(2)
+data$date_type <- if_else(data$week_day %in% c("sábado","domingo"), "weekend","weekday")
+data[sample(1:nrow(data))[1:10],]
+```
+
+
+```{r}
+daily_pattern2 <- data %>% group_by(interval,date_type) %>% summarise(avg=mean(steps))
+daily_pattern2 %>% ggplot(aes(x=interval,y=avg))+geom_line(size=0.8, color="darkblue")+theme_bw()+
+      ylab("Average steps")+ggtitle("Average steps per interval - per day of the week")+
+      theme(plot.title =  element_text(hjust=0.5,size=18))+facet_wrap("date_type")
+
+```
+
+Yes, there is a 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
